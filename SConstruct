@@ -165,7 +165,7 @@ Export('GALERA_VER', 'GALERA_REV')
 print('Signature: version: ' + GALERA_VER + ', revision: ' + GALERA_REV)
 
 LIBBOOST_PROGRAM_OPTIONS_A = ARGUMENTS.get('bpostatic', '')
-LIBBOOST_SYSTEM_A = string.replace(LIBBOOST_PROGRAM_OPTIONS_A, 'boost_program_options', 'boost_system')
+LIBBOOST_SYSTEM_A = LIBBOOST_PROGRAM_OPTIONS_A.replace('boost_program_options', 'boost_system')
 
 #
 # Set up and export default build environment
