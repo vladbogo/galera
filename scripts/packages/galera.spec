@@ -39,7 +39,9 @@
 %if 0%{?suse_version} == 1320
 %define dist .suse13.2
 %endif
-
+%if 0%{?suse_version} == 1500
+%define dist .suse15.0
+%endif
 
 Name:          %{name}
 Summary:       Galera: a synchronous multi-master wsrep provider (replication engine)
