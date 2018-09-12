@@ -59,7 +59,7 @@ BuildRoot:     %{_tmppath}/%{name}-%{version}
 #BuildRequires: boost-devel
 #BuildRequires: check-devel
 BuildRequires: glibc-devel
-BuildRequires: openssl-devel
+BuildRequires: libopenssl-1_0_0-devel
 BuildRequires: scons
 %if 0%{?suse_version} == 1110
 # On SLES11 SPx use the linked gcc47 to build instead of default gcc43
