@@ -349,7 +349,7 @@ namespace galera
                 case OOOC:
                     return true;
                 case LOCAL_OOOC:
-                    return trx_.is_local();
+                    if (trx_.is_local()) { return true; }
                     // in case of remote trx fall through
                     // fall through
                 case NO_OOOC:
