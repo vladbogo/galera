@@ -97,6 +97,7 @@ BuildRequires: systemd
 Requires:      openssl
 
 Provides:      wsrep, %{name} = %{version}-%{release}
+Obsoletes: galera-3
 
 %description
 Galera is a fast synchronous multimaster wsrep provider (replication engine)
