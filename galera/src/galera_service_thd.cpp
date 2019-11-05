@@ -52,20 +52,45 @@ galera::ServiceThd::thd_func (void* arg)
         {
             if (data.act_ & A_LAST_COMMITTED)
             {
-                ssize_t const ret
-                    (st->gcs_.set_last_applied(data.last_committed_));
+                static const size_t max_set_attempts(4);
+                size_t attempts = 0;
+                ssize_t ret;
 
-                if (gu_unlikely(ret < 0))
+                do
+                {
+                    ret = st->gcs_.set_last_applied(data.last_committed_);
+
+                    if (gu_likely(ret != -EINTR && ret != -ETIMEDOUT))
+                    {
+                        break;
+                    }
+
+                    attempts++;
+
+                    // gcs_set_last_applied() may return EINTR if the send
+                    // monitor was interruped, this is not a severe error
+                    // and in this case there is no need to display a warning
+                    // message. Also, you should not warn about the first
+                    // failures due to timeout (if the retry counter has
+                    // not been exhausted):
+                    log_debug << "Attempt " << attempts << ": "
+                              << "Failed to report last committed "
+                              << data.last_committed_
+                              << " (" << strerror (-ret) << ')';
+                }
+                while (attempts != max_set_attempts);
+
+                if (gu_likely(ret >= 0))
+                {
+                    log_debug << "Reported last committed: "
+                              << data.last_committed_;
+                }
+                else
                 {
                     log_warn << "Failed to report last committed "
                              << data.last_committed_ << ", " << ret
                              << " (" << strerror (-ret) << ')';
                     // @todo: figure out what to do in this case
-                }
-                else
-                {
-                    log_debug << "Reported last committed: "
-                              << data.last_committed_;
                 }
             }
 
