@@ -5,7 +5,7 @@ set -eu
 # $Id$
 
 # Galera library version
-VERSION="25.3.28"
+VERSION="25.3.29"
 
 get_cores()
 {
@@ -392,7 +392,7 @@ pushd "$build_base"
 GALERA_REV=$(git log --pretty=oneline | wc -l) || \
 GALERA_REV=$(bzr revno --tree -q)              || \
 GALERA_REV=$(svn info >&/dev/null && svnversion | sed s/\:/,/g) || \
-GALERA_REV="834d3"
+GALERA_REV="e86cb"
 # trim spaces (sed is not working on Solaris, so using bash built-in)
 GALERA_REV=${GALERA_REV//[[:space:]]/}
 popd
