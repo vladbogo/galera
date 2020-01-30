@@ -212,6 +212,17 @@ namespace gcomm
                    dgram.header_len());
         }
 
+        Datagram& operator=(const Datagram& other)
+        {
+            header_offset_ = other.header_offset_;
+            ::memcpy(header_ + header_offset_,
+                     other.header_ + other.header_offset_,
+                     other.header_len());
+            payload_ = other.payload_;
+            offset_ = other.offset_;
+            return *this;
+        }
+
         /*!
          * @brief Destruct datagram
          */
