@@ -201,7 +201,6 @@ namespace gcomm
          */
         Datagram(const Datagram& dgram,
                  size_t off = std::numeric_limits<size_t>::max()) :
-            // header_(dgram.header_),
             header_offset_(dgram.header_offset_),
             payload_(dgram.payload_),
             offset_(off == std::numeric_limits<size_t>::max() ? dgram.offset_ : off)
@@ -212,14 +211,18 @@ namespace gcomm
                    dgram.header_len());
         }
 
-        Datagram& operator=(const Datagram& other)
+        friend void swap(Datagram& lhs, Datagram& rhs)
         {
-            header_offset_ = other.header_offset_;
-            ::memcpy(header_ + header_offset_,
-                     other.header_ + other.header_offset_,
-                     other.header_len());
-            payload_ = other.payload_;
-            offset_ = other.offset_;
+            using std::swap;
+            swap(lhs.header_offset_, rhs.header_offset_);
+            swap(lhs.header_, rhs.header_);
+            swap(lhs.payload_, rhs.payload_);
+            swap(lhs.offset_, rhs.offset_);
+        }
+
+        Datagram& operator=(Datagram other)
+        {
+            swap(*this, other);
             return *this;
         }
 
