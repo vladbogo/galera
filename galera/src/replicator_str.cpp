@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2010-2019 Codership Oy <info@codership.com>
+// Copyright (C) 2010-2020 Codership Oy <info@codership.com>
 //
 
 #include "replicator_smm.hpp"
@@ -58,8 +58,7 @@ ReplicatorSMM::state_transfer_required(const wsrep_view_info_t& view_info,
             wsrep_seqno_t const group_seqno(view_info.state_id.seqno);
             wsrep_seqno_t const local_seqno(last_committed());
 
-            if (state_() >= S_JOINING) /* See #442 - S_JOINING should be
-                                          a valid state here */
+            if (state_() != S_CONNECTED)
             {
                 if (str_proto_ver >= 3)
                     return (local_seqno + 1 < group_seqno); // this CC will add 1
@@ -68,6 +67,8 @@ ReplicatorSMM::state_transfer_required(const wsrep_view_info_t& view_info,
             }
             else
             {
+                /* The node that has just CONNECTED can't be more advanced than
+                 * the group. */
                 if ((str_proto_ver >= 3 && local_seqno >= group_seqno) ||
                     (str_proto_ver <  3 && local_seqno >  group_seqno))
                 {
@@ -937,13 +938,25 @@ ReplicatorSMM::request_state_transfer (void* recv_ctx,
 
             update_state_uuid (sst_uuid_);
 
-            if (str_proto_ver < 3)
+            if (group_proto_ver < PROTO_VER_GALERA_3_MAX)
             {
-                // all IST events will bypass certification
+                log_error << "Rolling upgrade from group protocol version "
+                          << "earlier than "
+                          << PROTO_VER_GALERA_3_MAX
+                          << " is not supported. Please upgrade "
+                          << "Galera library to latest in Galera 3 series on "
+                          << "all of the nodes in the cluster before "
+                          << "continuing.";
+                abort();
+            }
+            else if (group_proto_ver == PROTO_VER_GALERA_3_MAX)
+            {
+                // Rolling upgrade from Galera 3 PROTO_VER_GALERA_3_MAX.
                 gu::GTID const cert_position
                     (sst_uuid_, std::max(cc_seqno, sst_seqno_));
-                cert_.assign_initial_position(cert_position,
-                                              trx_params_.version_);
+                cert_.assign_initial_position(
+                    cert_position,
+                    std::get<0>(get_trx_protocol_versions(group_proto_ver)));
                 // with higher versions this happens in cert index preload
             }
 
