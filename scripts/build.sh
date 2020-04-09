@@ -389,7 +389,7 @@ build_sources()
 GALERA_VER=$RELEASE
 
 pushd "$build_base"
-GALERA_REV=$(git log --pretty=oneline | wc -l) || \
+GALERA_REV=$(git log --pretty=format:'%h' -n1.) || \
 GALERA_REV=$(bzr revno --tree -q)              || \
 GALERA_REV=$(svn info >&/dev/null && svnversion | sed s/\:/,/g) || \
 GALERA_REV="e86cb"
