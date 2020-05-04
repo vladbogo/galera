@@ -578,7 +578,7 @@ START_TEST(random_access)
     m.insert(Min, Test(Min));
     m.insert(Max, Test(Max));
 
-    fail_if(m.size() != size_t(Max - Min + 1));
+    fail_if(m.size() != (Max - Min + 1));
     fail_if(m.index_begin() != Min);
     fail_if(m.index_back()  != Max);
     fail_unless(m.front() == Test(Min));
@@ -633,7 +633,7 @@ START_TEST(find)
 }
 END_TEST
 
-START_TEST(random_test)
+START_TEST(random)
 {
     /* access methods */
     typedef enum
@@ -848,8 +848,7 @@ Suite* gu_deqmap_suite ()
     suite_add_tcase(s, t);
 
     t = tcase_create("random");
-    tcase_add_test(t, random_test);
-    tcase_set_timeout(t, 120);
+    tcase_add_test(t, random);
     suite_add_tcase(s, t);
 
     return s;
