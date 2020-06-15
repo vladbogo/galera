@@ -2048,7 +2048,7 @@ void galera::ReplicatorSMM::handle_trx_overlapping_ist(
     // Use local seqno from original ts for local monitor.
     LocalOrder lo(ts->local_seqno(), ts.get());
 
-    // Get real_ts pointing to GCache buffer with will not be discarded
+    // Get real_ts pointing to GCache buffer which will not be discarded
     // if there is overlap. Do not try to access ts after this line.
     auto real_ts(get_real_ts_with_gcache_buffer(ts));
     local_monitor_.enter(lo);
@@ -2456,6 +2456,9 @@ galera::ReplicatorSMM::process_conf_change(void*                    recv_ctx,
         process_prim_conf_change(recv_ctx, conf, cc.seqno_g,
                                  const_cast<void*>(cc.buf));
     }
+
+    resume_recv();
+
     local_monitor_.leave(lo);
 
     if (conf.memb.size() == 0)
@@ -2474,7 +2477,7 @@ void galera::ReplicatorSMM::drain_monitors_for_local_conf_change()
     if (upto >= last_committed())
     {
         log_debug << "Drain monitors from " << last_committed()
-                  << " upto " << upto;
+                  << " up to " << upto;
         gu_trace(drain_monitors(upto));
     }
     else
@@ -2489,7 +2492,10 @@ void galera::ReplicatorSMM::process_non_prim_conf_change(
     const gcs_act_cchange& conf,
     int const my_index)
 {
-    assert(conf.seqno == WSREP_SEQNO_UNDEFINED);
+    assert(conf.conf_id == WSREP_SEQNO_UNDEFINED);
+
+    /* ignore outdated non-prim configuration change */
+    if (conf.uuid == state_uuid_ && conf.seqno < sst_seqno_) return;
 
     wsrep_uuid_t new_uuid(uuid_);
     wsrep_view_info_t* const view_info
@@ -2506,9 +2512,6 @@ void galera::ReplicatorSMM::process_non_prim_conf_change(
     {
         drain_monitors_for_local_conf_change();
     }
-
-    // reset sst_seqno_ every time we disconnct from PC
-    sst_seqno_ = WSREP_SEQNO_UNDEFINED;
 
     update_incoming_list(*view_info);
 
@@ -2531,8 +2534,6 @@ void galera::ReplicatorSMM::process_non_prim_conf_change(
             state_.shift_to(S_CONNECTED);
         }
     }
-
-    resume_recv();
 }
 
 static void validate_local_prim_view_info(const wsrep_view_info_t* view_info,
@@ -2582,7 +2583,6 @@ bool galera::ReplicatorSMM::skip_prim_conf_change(
 
     log_info << "####### skipping local CC " << cc_seqno << ", keep in cache: "
              << (keep ? "true" : "false");
-    resume_recv();
 
     return keep;
 }
@@ -2791,7 +2791,7 @@ void galera::ReplicatorSMM::become_joined_if_needed()
          */
         try {
             gcs_.join(gu::GTID(state_uuid_, sst_seqno_), 0);
-            sst_state_ = SST_NONE;
+            sst_state_ = SST_JOIN_SENT;
         }
         catch (gu::Exception& e)
         {
@@ -2834,7 +2834,6 @@ void galera::ReplicatorSMM::finish_local_prim_conf_change(
     bool const ordered __attribute__((unused))
         (group_proto_ver >= PROTO_VER_ORDERED_CC);
     assert(gcache_.seqno_min() > 0 || not ordered);
-    resume_recv();
 }
 
 namespace {
@@ -2850,6 +2849,7 @@ void galera::ReplicatorSMM::process_prim_conf_change(void* recv_ctx,
     assert(conf.seqno > 0);
     assert(my_index >= 0);
 
+    GU_DBUG_SYNC_WAIT("process_primary_configuration");
     // Helper to discard cc_buf automatically when it goes out of scope.
     // Method keep() should be called if the buffer should be kept in
     // gcache.
@@ -2891,9 +2891,19 @@ void galera::ReplicatorSMM::process_prim_conf_change(void* recv_ctx,
     // Will abort if validation fails
     validate_local_prim_view_info(view_info.get(), uuid_);
 
+    bool const ordered(group_proto_version >= PROTO_VER_ORDERED_CC);
+    const wsrep_uuid_t& group_uuid (view_info->state_id.uuid);
+    wsrep_seqno_t const group_seqno(view_info->state_id.seqno);
+
+    assert(group_seqno == conf.seqno);
+    assert(not ordered || group_seqno > 0);
+
+    /* Invalidate sst_seqno_ in case of group change. */
+    if (state_uuid_ != group_uuid) sst_seqno_ = WSREP_SEQNO_UNDEFINED;
+
     if (conf.seqno <= sst_seqno_)
     {
-        // contained already in SST, skip
+        // contained already in SST, skip any further processing
         if (skip_prim_conf_change(*view_info, group_proto_version))
         {
             // was not part of IST, don't discard
@@ -2901,13 +2911,6 @@ void galera::ReplicatorSMM::process_prim_conf_change(void* recv_ctx,
         }
         return;
     }
-
-    bool const ordered(group_proto_version >= PROTO_VER_ORDERED_CC);
-    const wsrep_uuid_t& group_uuid (view_info->state_id.uuid);
-    wsrep_seqno_t const group_seqno(view_info->state_id.seqno);
-
-    assert(group_seqno == conf.seqno);
-    assert(not ordered || group_seqno > 0);
 
     log_info << "####### processing CC " << group_seqno
              << ", local"
@@ -3033,6 +3036,7 @@ void galera::ReplicatorSMM::process_join(wsrep_seqno_t seqno_j,
     else
     {
         state_.shift_to(S_JOINED);
+        sst_state_ = SST_NONE;
     }
 
     local_monitor_.leave(lo);

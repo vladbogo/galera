@@ -1820,16 +1820,27 @@ gcs_group_handle_state_request (gcs_group_t*         group,
         const char* joiner_status_string = gcs_node_state_to_str(joiner_status);
 
         if (group->my_idx == joiner_idx) {
-            gu_error ("Requesting state transfer while in %s. "
-                      "Ignoring.", joiner_status_string);
-            act->id = -ECANCELED;
+            if (joiner_status >= GCS_NODE_STATE_JOINED)
+            {
+                gu_warn ("Requesting state transfer while in %s. "
+                         "Ignoring.", joiner_status_string);
+                act->id = -ECANCELED;
+            }
+            else
+            {
+                /* The node can't send two STRs in a row */
+                assert(joiner_status == GCS_NODE_STATE_JOINER);
+                gu_fatal("Requesting state transfer while in %s. "
+                         "Internal program error.", joiner_status_string);
+                act->id = -ENOTRECOVERABLE;
+            }
             return act->act.buf_len;
         }
         else {
-            gu_error ("Member %d.%d (%s) requested state transfer, "
-                      "but its state is %s. Ignoring.",
-                      joiner_idx, group->nodes[joiner_idx].segment, joiner_name,
-                      joiner_status_string);
+            gu_warn ("Member %d.%d (%s) requested state transfer, "
+                     "but its state is %s. Ignoring.",
+                     joiner_idx, group->nodes[joiner_idx].segment, joiner_name,
+                     joiner_status_string);
             gcs_group_ignore_action (group, act);
             return 0;
         }
@@ -1896,12 +1907,12 @@ gcs_group_act_conf (gcs_group_t*         group,
                 conf.vote_res   = group->vote_result.res;
             }
         }
-        conf.seqno      = group->act_id_;
-    } else {
+    }
+    else {
         assert(GCS_GROUP_NON_PRIMARY == group->state);
-        conf.seqno      = GCS_SEQNO_ILL;
     }
 
+    conf.seqno          = group->act_id_;
     conf.conf_id        = group->conf_id;
     conf.repl_proto_ver = group->quorum.repl_proto_ver;
     conf.appl_proto_ver = group->quorum.appl_proto_ver;
