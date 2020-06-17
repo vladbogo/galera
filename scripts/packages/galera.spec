@@ -27,20 +27,11 @@
 
 # For suse versions see:
 # https://en.opensuse.org/openSUSE:Build_Service_cross_distribution_howto
-%if 0%{?suse_version} == 1110
-%define dist .sle11
-%endif
-%if 0%{?suse_version} == 1310
-%define dist .suse13.1
-%endif
-%if 0%{?suse_version} == 1315
+%if 0%{?suse_version} == 1200
 %define dist .sle12
 %endif
-%if 0%{?suse_version} == 1320
-%define dist .suse13.2
-%endif
 %if 0%{?suse_version} == 1500
-%define dist .suse15.0
+%define dist .sle15
 %endif
 
 
@@ -101,6 +92,8 @@ Obsoletes: galera
 Conflicts: galera
 Obsoletes: galera-3
 Conflicts: galera-3
+
+Requires: rsync, socat, lsof
 
 %description
 Galera is a fast synchronous multimaster wsrep provider (replication engine)
@@ -163,7 +156,6 @@ install -d $RBR%{docs}
 install -m 644 $RBD/COPYING                       $RBR%{docs}/COPYING
 install -m 644 $RBD/asio/LICENSE_1_0.txt          $RBR%{docs}/LICENSE.asio
 install -m 644 $RBD/www.evanjones.ca/LICENSE      $RBR%{docs}/LICENSE.crc32c
-install -m 644 $RBD/chromium/LICENSE              $RBR%{docs}/LICENSE.chromium
 install -m 644 $RBD/scripts/packages/README       $RBR%{docs}/README
 install -m 644 $RBD/scripts/packages/README-MySQL $RBR%{docs}/README-MySQL
 
@@ -208,7 +200,6 @@ rm -f $(find %{libs} -type l)
 %doc %attr(0644,root,root) %{docs}/COPYING
 %doc %attr(0644,root,root) %{docs}/LICENSE.asio
 %doc %attr(0644,root,root) %{docs}/LICENSE.crc32c
-%doc %attr(0644,root,root) %{docs}/LICENSE.chromium
 %doc %attr(0644,root,root) %{docs}/README
 %doc %attr(0644,root,root) %{docs}/README-MySQL
 
