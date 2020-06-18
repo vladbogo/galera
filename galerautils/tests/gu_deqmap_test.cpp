@@ -849,6 +849,7 @@ Suite* gu_deqmap_suite ()
 
     t = tcase_create("random");
     tcase_add_test(t, random_test);
+    tcase_set_timeout(t, 120);
     suite_add_tcase(s, t);
 
     return s;
