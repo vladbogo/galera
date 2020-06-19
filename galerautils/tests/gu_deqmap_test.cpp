@@ -578,7 +578,7 @@ START_TEST(random_access)
     m.insert(Min, Test(Min));
     m.insert(Max, Test(Max));
 
-    fail_if(m.size() != (Max - Min + 1));
+    fail_if(m.size() != size_t(Max - Min + 1));
     fail_if(m.index_begin() != Min);
     fail_if(m.index_back()  != Max);
     fail_unless(m.front() == Test(Min));
