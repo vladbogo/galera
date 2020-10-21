@@ -188,7 +188,8 @@ group_redo_last_applied (gcs_group_t* group)
                      GCS_NODE_STATE_DONOR  == node->status);
         }
 
-//        gu_debug ("last_applied[%ld]: %lld", n, seqno);
+//        gu_debug("redo_last_applied[%ld]: %lld, count: %s",
+//                 n, seqno, count ? "yes" : "no");
 
         /* NOTE: It is crucial for consistency that last_applied algorithm
          *       is absolutely identical on all nodes. Therefore for the
@@ -1339,6 +1340,10 @@ group_select_donor (gcs_group_t* group,
 void
 gcs_group_ignore_action (gcs_group_t* group, struct gcs_act_rcvd* act)
 {
+    gu_debug("Ignoring action: buf: %p, len: %zd, type: %d, sender: %d, "
+             "seqno: %lld", act->act.buf, act->act.buf_len, act->act.type,
+             act->sender_idx, act->id);
+
     if (act->act.type <= GCS_ACT_STATE_REQ) {
         gcs_gcache_free (group->cache, act->act.buf);
     }
