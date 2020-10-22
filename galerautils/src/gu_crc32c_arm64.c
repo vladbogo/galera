@@ -71,6 +71,10 @@ gu_crc32c_arm64(gu_crc32c_t state, const void* data, size_t len)
 
 #include <sys/auxv.h>
 
+#ifndef HWCAP_CRC32
+#define HWCAP_CRC32 (1<<7)
+#endif
+
 gu_crc32c_func_t
 gu_crc32c_hardware()
 {
