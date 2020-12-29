@@ -397,7 +397,6 @@ GALERA_REV=$(svn info >&/dev/null && svnversion | sed s/\:/,/g) || \
 GALERA_REV="e86cb"
 # trim spaces (sed is not working on Solaris, so using bash built-in)
 GALERA_REV=${GALERA_REV//[[:space:]]/}
-popd
 
 if [ -z "$RELEASE" ]
 then
@@ -424,7 +423,7 @@ then
 
     if [ "$SKIP_BUILD" != "yes" ]
     then
-        make -j $JOBS
+        make -j $JOBS VERBOSE=1
     fi
 
     if [ $RUN_TESTS ]
@@ -472,3 +471,5 @@ if test "$SOURCE" == "yes"
 then
     build_sources
 fi
+
+popd # $build_base
