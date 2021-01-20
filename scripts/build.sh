@@ -213,7 +213,8 @@ do
             shift
             ;;
         --scons)
-            SCONS="no"
+            SCONS="yes"
+            CMAKE="no"
             ;;
         --so)
             SCONS_OPTS="$SCONS_OPTS $2"
