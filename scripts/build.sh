@@ -407,7 +407,12 @@ then
     source GALERA_VERSION
     RELEASE="$GALERA_VERSION_WSREP_API.$GALERA_VERSION_MAJOR.$GALERA_VERSION_MINOR"
 fi
-if [ "$CMAKE" == "yes" ] # Build using CMake
+if [ "$PACKAGE" == "yes" -a $DEBIAN -ne 0 ]
+then
+    # Skip extra build step when building package for debian
+    echo "Reset env for Debian package build"
+    unset CC CXX LD_LIBRARY_PATH CPPFLAGS CFLAGS CXXFLAGS
+elif [ "$CMAKE" == "yes" ] # Build using CMake
 then
     cmake_args="$CMAKE_OPTS -DGALERA_REVISION=$GALERA_REV"
     [ -n "$TARGET"        ] && \
