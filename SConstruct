@@ -99,15 +99,7 @@ link_arch    = ''
 build_dir    = ''
 
 # Version script file
-galera_script = File('#/galera-sym.map').abspath
-with open(galera_script, 'w') as f:
-    f.write('''{
-    global: wsrep_loader;
-            wsrep_interface_version;
-    local:  *;
-};
-''')
-
+galera_script = File('#/galera/src/galera-sym.map').abspath
 
 #
 # Read commandline options
@@ -170,16 +162,13 @@ static_ssl = ARGUMENTS.get('static_ssl', None)
 install = ARGUMENTS.get('install', None)
 version_script = int(ARGUMENTS.get('version_script', 1))
 
-GALERA_VER = ARGUMENTS.get('version', '3.31')
+GALERA_VER = ARGUMENTS.get('version', '3.32')
 GALERA_REV = ARGUMENTS.get('revno', 'XXXX')
 
 # Attempt to read from file if not given
 if GALERA_REV == "XXXX" and os.path.isfile("GALERA_REVISION"):
-    f = open("GALERA_REVISION", "r")
-    try:
+    with open("GALERA_REVISION", "r") as f:
         GALERA_REV = f.readline().rstrip("\n")
-    finally:
-        f.close()
 
 # export to any module that might have use of those
 Export('GALERA_VER', 'GALERA_REV')
