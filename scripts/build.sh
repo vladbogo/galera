@@ -38,11 +38,13 @@ Options:
     --dl            set debug level for Scons build (1, implies -c)
     -r|--release    release number
     -m32/-m64       build 32/64-bit binaries for x86
-    -p|--package    build RPM and DEB packages at the end.
+    -p|--package    build RPM packages at the end (DEB not supported).
     --with-spread   configure build with spread backend (implies -c to gcs)
     --source        build source packages
     --sb            skip actual build, use the existing binaries
-    --scons         build using Scons build system (yes)
+    --cmake         build using CMake build system (yes)
+    --co            CMake options
+    --scons         build using Scons build system (no)
     --so            Sconscript option
     -j|--jobs       how many parallel jobs to use for Scons (1)
     -a|--archive    Generate source archive (tar.gz)
@@ -60,7 +62,9 @@ RELEASE=${RELEASE:-""}
 SOURCE=${SOURCE:-"no"}
 DEBUG=${DEBUG:-"no"}
 DEBUG_LEVEL=${DEBUG_LEVEL:-"0"}
-SCONS=${SCONS:-"yes"}
+CMAKE=${CMAKE:-"yes"}
+CMAKE_OPTS=${CMAKE_OPTS:-""}
+SCONS=${SCONS:-"no"}
 SCONS_OPTS=${SCONS_OPTS:-""}
 export JOBS=${JOBS:-"$(get_cores)"}
 SCRATCH=${SCRATCH:-"no"}
@@ -93,8 +97,6 @@ if [ "$OS" == "Darwin" ]; then
 elif [ "$OS" == "FreeBSD" ]; then
   EXTRA_SYSROOT=/usr/local
 fi
-
-which dpkg >/dev/null 2>&1 && DEBIAN=${DEBIAN:-1} || DEBIAN=${DEBIAN:-0}
 
 if [ "$OS" == "FreeBSD" ]; then
     CC=${CC:-"gcc48"}
@@ -135,9 +137,9 @@ last_stage="galera"
 gainroot=""
 TARGET=${TARGET:-""} # default target
 
-while test $# -gt 0 
+while test $# -gt 0
 do
-    case $1 in 
+    case $1 in
         --stage)
             initial_stage=$2
             shift
@@ -198,8 +200,17 @@ do
         --sb)
             SKIP_BUILD="yes"
             ;;
+        --cmake)
+            CMAKE="yes"
+            SCONS="no"
+            ;;
+        --co)
+            CMAKE_OPTS="$CMAKE_OPTS $2"
+            shift
+            ;;
         --scons)
             SCONS="yes"
+            CMAKE="no"
             ;;
         --so)
             SCONS_OPTS="$SCONS_OPTS $2"
@@ -227,6 +238,11 @@ do
     shift
 done
 
+    if which dpkg >/dev/null 2>&1
+    then
+        echo "Error: Package build not supported on Debian, use dpkg-buildpackage"
+        exit 1
+    fi
 if [ "$OPT"   == "yes" ]; then CONFIGURE="yes";
    conf_flags="--disable-debug --disable-dbug";
 fi
@@ -303,7 +319,7 @@ build_packages()
     rm -rf $ARCH
 
     set +e
-    if [ $DEBIAN -ne 0 ]; then # build DEB
+    if [ "$OS" == "FreeBSD" ]; then
         debian_version="$(lsb_release -sc)"
 
         # Adjust compat for older platforms
@@ -330,9 +346,8 @@ build_packages()
 
     set -e
 
-    if [ $DEBIAN -ne 0 ]; then
+    if [ "$OS" == "FreeBSD" ]; then
         echo Debian - Do nothing
-    elif [ "$OS" == "FreeBSD" ]; then
         mv -f $PKG_DIR/*.tbz ./
     else
         mv -f $PKG_DIR/*.rpm ./
@@ -395,9 +410,42 @@ GALERA_REV=$(svn info >&/dev/null && svnversion | sed s/\:/,/g) || \
 GALERA_REV="7983e"
 # trim spaces (sed is not working on Solaris, so using bash built-in)
 GALERA_REV=${GALERA_REV//[[:space:]]/}
-popd
 
-if [ "$SCONS" == "yes" ] # Build using Scons
+if [ -z "$RELEASE" ]
+then
+    source GALERA_VERSION
+    RELEASE="$GALERA_VERSION_WSREP_API.$GALERA_VERSION_MAJOR.$GALERA_VERSION_MINOR"
+fi
+if [ "$CMAKE" == "yes" ] # Build using CMake
+then
+    cmake_args="$CMAKE_OPTS -DGALERA_REVISION=$GALERA_REV"
+    [ -n "$TARGET"        ] && \
+        echo "WARN: TARGET=$TARGET ignored by CMake build"
+    [ -n "$RELEASE"       ] && \
+        echo "WARN: RELEASE=$RELEASE ignored by CMake build"
+    [ "$DEBUG" == "yes"   ] && \
+        cmake_args="$cmake_args -DCMAKE_BUILD_TYPE=Debug" || \
+        cmake_args="$cmake_args -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    [ -n "$EXTRA_SYSROOT" ] && \
+        echo "EXTRA_SYSROOT=$EXTRA_SYSROOT ignored by CMake build"
+
+    if [ "$SCRATCH" == "yes" ]
+    then
+        (cd $build_base && make clean) || :
+        rm -f $build_base/CMakeCache.txt
+        cmake $cmake_args $build_base
+    fi
+
+    if [ "$SKIP_BUILD" != "yes" ]
+    then
+        make -j $JOBS VERBOSE=1
+    fi
+
+    if [ $RUN_TESTS ]
+    then
+        make test ARGS=-V
+    fi
+elif [ "$SCONS" == "yes" ] # Build using Scons
 then
     # Scons variant dir, defaults to GALERA_SRC
     export SCONS_VD=$build_base
@@ -439,4 +487,4 @@ then
     build_sources
 fi
 
-
+popd # $build_base

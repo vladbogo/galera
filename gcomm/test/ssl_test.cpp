@@ -87,7 +87,6 @@ public:
 
     ~Server()
     {
-        delete listener_;
         pnet_.erase(&pstack_);
         pstack_.pop_proto(this);
     }
@@ -144,7 +143,7 @@ private:
     gu::URI                           uri_;
     gcomm::Protonet&                  pnet_;
     gcomm::Protostack                 pstack_;
-    gcomm::Acceptor*                  listener_;
+    std::shared_ptr<gcomm::Acceptor>  listener_;
     std::map<const void*, gcomm::SocketPtr> smap_;
     const std::string                 msg_;
 };
@@ -163,7 +162,7 @@ int main(int argc, char* argv[])
     gu::Config conf;
     gcomm::Conf::register_params(conf);
     conf.parse(argv[2]);
-    std::auto_ptr<gcomm::Protonet> pnet(gcomm::Protonet::create(conf));
+    std::unique_ptr<gcomm::Protonet> pnet(gcomm::Protonet::create(conf));
 
     if (std::string("-s") == argv[1])
     {
