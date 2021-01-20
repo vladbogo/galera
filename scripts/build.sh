@@ -5,7 +5,7 @@ set -eu
 # $Id$
 
 # Galera library version
-VERSION="26.4.6"
+VERSION="26.4.7"
 
 get_cores()
 {
@@ -38,7 +38,7 @@ Options:
     --dl            set debug level for Scons build (1, implies -c)
     -r|--release    release number
     -m32/-m64       build 32/64-bit binaries for x86
-    -p|--package    build RPM packages at the end (DEB not supported).
+    -p|--package    build RPM and DEB packages at the end.
     --with-spread   configure build with spread backend (implies -c to gcs)
     --source        build source packages
     --sb            skip actual build, use the existing binaries
@@ -98,6 +98,8 @@ elif [ "$OS" == "FreeBSD" ]; then
   EXTRA_SYSROOT=/usr/local
 fi
 
+which dpkg >/dev/null 2>&1 && DEBIAN=${DEBIAN:-1} || DEBIAN=${DEBIAN:-0}
+
 if [ "$OS" == "FreeBSD" ]; then
     CC=${CC:-"gcc48"}
     CXX=${CXX:-"g++48"}
@@ -119,10 +121,12 @@ if [ -r /etc/redhat-release ]; then
   if grep 'CentOS release 5' /etc/redhat-release > /dev/null 2>&1; then
     LD_LIBRARY_PATH=/usr/local/lib64/:/usr/local/lib/:${LD_LIBRARY_PATH:-}
   fi
+  DEBIAN=0
 fi
 if [ -r /etc/issue ]; then
   if grep 'SUSE Linux Enterprise Server 11 SP1' /etc/issue > /dev/null 2>&1; then
     LD_LIBRARY_PATH=/usr/local/lib64/:/usr/local/lib/:${LD_LIBRARY_PATH:-}
+    DEBIAN=0
   fi
 fi
 
@@ -238,11 +242,6 @@ do
     shift
 done
 
-    if which dpkg >/dev/null 2>&1
-    then
-        echo "Error: Package build not supported on Debian, use dpkg-buildpackage"
-        exit 1
-    fi
 if [ "$OPT"   == "yes" ]; then CONFIGURE="yes";
    conf_flags="--disable-debug --disable-dbug";
 fi
@@ -319,7 +318,19 @@ build_packages()
     rm -rf $ARCH
 
     set +e
-    if [ "$OS" == "FreeBSD" ]; then
+    if [ $DEBIAN -ne 0 ]; then # build DEB
+        debian_version="$(lsb_release -sc)"
+
+        # Adjust compat for older platforms
+        test "$debian_version" != "lucid" || echo 7 > debian/compat
+        test "$debian_version" != "squeeze" || echo 8 > debian/compat
+
+        dch -m -D "$debian_version" --force-distribution -v "$GALERA_VER-$debian_version" "Version upgrade"
+        # -d : Do not check build dependencies and conflicts.
+        DEB_BUILD_OPTIONS="version=$GALERA_VER revno=$GALERA_REV parallel=$JOBS nostrip" dpkg-buildpackage -us -uc -b -d
+        RET=$?
+    else
+        if [ "$OS" == "FreeBSD" ]; then
         debian_version="$(lsb_release -sc)"
 
         # Adjust compat for older platforms
@@ -336,9 +347,11 @@ build_packages()
             if test "$NO_STRIP" != "yes"; then
                 strip $build_base/{garb/garbd,libgalera_smm.so}
             fi
-            ./freebsd.sh $GALERA_VER
+            $PKG_DIR/freebsd.sh $GALERA_VER
         else # build RPM
-            ./rpm.sh $GALERA_VER
+            $PKG_DIR/rpm.sh $GALERA_VER
+        fi
+        RET=$?
         fi
         RET=$?
         popd
@@ -346,12 +359,7 @@ build_packages()
 
     set -e
 
-    if [ "$OS" == "FreeBSD" ]; then
         echo Debian - Do nothing
-        mv -f $PKG_DIR/*.tbz ./
-    else
-        mv -f $PKG_DIR/*.rpm ./
-    fi
     return $RET
 }
 
@@ -405,18 +413,22 @@ GALERA_VER=$RELEASE
 
 pushd "$build_base"
 GALERA_REV=$(git log --pretty=format:'%h' -n1.) || \
-GALERA_REV=$(bzr revno --tree -q)              || \
-GALERA_REV=$(svn info >&/dev/null && svnversion | sed s/\:/,/g) || \
-GALERA_REV="7983e"
+GALERA_REV="XXXXX"
 # trim spaces (sed is not working on Solaris, so using bash built-in)
 GALERA_REV=${GALERA_REV//[[:space:]]/}
+popd
 
 if [ -z "$RELEASE" ]
 then
     source GALERA_VERSION
     RELEASE="$GALERA_VERSION_WSREP_API.$GALERA_VERSION_MAJOR.$GALERA_VERSION_MINOR"
 fi
-if [ "$CMAKE" == "yes" ] # Build using CMake
+if [ "$PACKAGE" == "yes" -a $DEBIAN -ne 0 ]
+then
+    # Skip extra build step when building package for debian
+    echo "Reset env for Debian package build"
+    unset CC CXX LD_LIBRARY_PATH CPPFLAGS CFLAGS CXXFLAGS
+elif [ "$CMAKE" == "yes" ] # Build using CMake
 then
     cmake_args="$CMAKE_OPTS -DGALERA_REVISION=$GALERA_REV"
     [ -n "$TARGET"        ] && \
@@ -487,4 +499,4 @@ then
     build_sources
 fi
 
-popd # $build_base
+
