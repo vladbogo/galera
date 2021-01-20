@@ -331,19 +331,6 @@ build_packages()
         RET=$?
     else
         if [ "$OS" == "FreeBSD" ]; then
-        debian_version="$(lsb_release -sc)"
-
-        # Adjust compat for older platforms
-        test "$debian_version" != "lucid" || echo 7 > debian/compat
-        test "$debian_version" != "squeeze" || echo 8 > debian/compat
-
-        dch -m -D "$debian_version" --force-distribution -v "$GALERA_VER-$debian_version" "Version upgrade"
-        # -d : Do not check build dependencies and conflicts.
-        DEB_BUILD_OPTIONS="version=$GALERA_VER revno=$GALERA_REV parallel=$JOBS nostrip" dpkg-buildpackage -us -uc -b -d
-        RET=$?
-    else
-        pushd $PKG_DIR
-        if [ "$OS" == "FreeBSD" ]; then
             if test "$NO_STRIP" != "yes"; then
                 strip $build_base/{garb/garbd,libgalera_smm.so}
             fi
@@ -352,14 +339,11 @@ build_packages()
             $PKG_DIR/rpm.sh $GALERA_VER
         fi
         RET=$?
-        fi
-        RET=$?
-        popd
     fi
+    local RET=$?
 
     set -e
 
-        echo Debian - Do nothing
     return $RET
 }
 
@@ -435,9 +419,7 @@ then
         echo "WARN: TARGET=$TARGET ignored by CMake build"
     [ -n "$RELEASE"       ] && \
         echo "WARN: RELEASE=$RELEASE ignored by CMake build"
-    [ "$DEBUG" == "yes"   ] && \
-        cmake_args="$cmake_args -DCMAKE_BUILD_TYPE=Debug" || \
-        cmake_args="$cmake_args -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    [ "$DEBUG" == "yes"   ] && cmake_args="$cmake_args -DCMAKE_BUILD_TYPE=Debug"
     [ -n "$EXTRA_SYSROOT" ] && \
         echo "EXTRA_SYSROOT=$EXTRA_SYSROOT ignored by CMake build"
 
