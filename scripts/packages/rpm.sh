@@ -50,11 +50,15 @@ fi
 
 if [ -z "$DIST_TAG" ]
 then
-  DIST_TAG=$(rpm --eval %{dist})
+  DIST_TAG=$(rpm --eval "%{dist}")
+  if [ "$DIST_TAG" = "%{dist}" ]
+  then
+    DIST_TAG=
+  fi
 fi
 
 # from /etc/os-release
-if [ "$NAME" = SLES ] && [ -z "$DIST_TAG" ]
+if  [ -z "$DIST_TAG" ]
 then
   DIST_TAG=".${ID}${VERSION_ID%%.*}"
 fi
