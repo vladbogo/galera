@@ -40,16 +40,15 @@ Group:         System Environment/Libraries
 Version:       %{version}
 Release:       %{release}%{dist}
 License:       GPL-2.0
-Source:        http://www.codership.com/downloads/download-mysqlgalera/
+Source:        %{name}-%{version}.tar.gz
 URL:           http://www.codership.com/
 Packager:      Codership Oy
 Vendor:        Codership Oy
 
-BuildRoot:     %{_tmppath}/%{name}-%{version}
-
-#BuildRequires: boost-devel
-#BuildRequires: check-devel
+BuildRequires: boost-devel
+BuildRequires: check-devel
 BuildRequires: glibc-devel
+BuildRequires: pkgconfig
 %if "%{dist}" == ".opensuse-leap15"
 BuildRequires: pkgconfig(libssl)
 %else
@@ -119,18 +118,16 @@ This software comes with ABSOLUTELY NO WARRANTY. This is free software,
 and you are welcome to modify and redistribute it under the GPLv2 license.
 
 %prep
-#%setup -T -a 0 -c -n galera-%{version}
+%setup -q
 
 %build
-Build() {
-CFLAGS=${CFLAGS:-$RPM_OPT_FLAGS}
-CXXFLAGS=${CXXFLAGS:-$RPM_OPT_FLAGS}
-# We assume that Galera is built already by the top build.sh script
-}
+cmake -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build . --verbose --parallel=$(($(nproc) > 8 ? 8 : $(nproc)))
+ctest . --output-on-failure
 
 %install
 RBR=$RPM_BUILD_ROOT
-RBD=$RPM_BUILD_DIR
+RBD=./
 
 # Clean up the BuildRoot first
 [ "$RBR" != "/" ] && [ -d $RBR ] && rm -rf $RBR;
