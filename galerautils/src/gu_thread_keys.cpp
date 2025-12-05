@@ -93,6 +93,8 @@ public:
         mutex_keys_vec.push_back(
             std::make_pair("gcs_repl_act_wait", (wsrep_mutex_key_t*)(0)));
         mutex_keys_vec.push_back(
+            std::make_pair("gcs_join", (wsrep_mutex_key_t*)(0)));
+        mutex_keys_vec.push_back(
             std::make_pair("gcs_sm", (wsrep_mutex_key_t*)(0)));
         mutex_keys_vec.push_back(
             std::make_pair("gcs_fifo_lite", (wsrep_mutex_key_t*)(0)));
