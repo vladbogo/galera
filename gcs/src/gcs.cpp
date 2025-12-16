@@ -771,7 +771,7 @@ gcs_become_primary (gcs_conn_t* conn)
 
     if ((ret = _release_flow_control (conn))) {
         gu_fatal ("Failed to release flow control: %d (%s)",
-                  ret, gcs_error_str(ret));
+                  ret, gcs_error_str(-ret));
         gcs_close (conn);
         abort();
     }
@@ -1487,7 +1487,13 @@ static void *gcs_recv_thread (void *arg)
     // To avoid race between gcs_open() and the following state check in while()
     gu_cond_t tmp_cond; /* TODO: rework when concurrency in SM is allowed */
     gu_cond_init (gu::get_cond_key(gu::GU_COND_KEY_GCS_RECV_THREAD), &tmp_cond);
-    gcs_sm_enter(conn->sm, &tmp_cond, false, true);
+
+    if ((ret = gcs_sm_enter(conn->sm, &tmp_cond, false, true)))
+    {
+        gu_error("Failed to enter send monitor: %ld (%s)", ret, strerror(-ret));
+        gu_abort();
+    }
+
     gcs_sm_leave(conn->sm);
     gu_cond_destroy (&tmp_cond);
 
@@ -1522,8 +1528,16 @@ static void *gcs_recv_thread (void *arg)
             struct gcs_recv_act* err_act =
                 (struct gcs_recv_act*) gu_fifo_get_tail(conn->recv_q);
 
-            err_act->rcvd     = rcvd;
-            err_act->local_id = GCS_SEQNO_ILL;
+            if (err_act)
+            {
+                err_act->rcvd     = rcvd;
+                err_act->local_id = GCS_SEQNO_ILL;
+            }
+            else
+            {
+                gu_error("Can't get tail of recv");
+                gu_abort();
+            }
 
             GCS_FIFO_PUSH_TAIL (conn, rcvd.act.buf_len);
 
@@ -2540,7 +2554,7 @@ _set_fc_limit (gcs_conn_t* conn, const char* value)
 
     if (limit > 0LL && *endptr == '\0') {
 
-        if (limit > LONG_MAX) limit = LONG_MAX;
+        if ((unsigned long long)limit > LONG_MAX) limit = LONG_MAX;
 
         gu_fifo_lock(conn->recv_q);
         {
@@ -2644,7 +2658,7 @@ _set_pkt_size (gcs_conn_t* conn, const char* value)
 
     if (pkt_size > 0 && *endptr == '\0') {
 
-        if (pkt_size > LONG_MAX) pkt_size = LONG_MAX;
+        if ((unsigned long long)pkt_size > LONG_MAX) pkt_size = LONG_MAX;
 
         if (conn->params.max_packet_size == pkt_size) return 0;
 
@@ -2672,7 +2686,7 @@ _set_recv_q_hard_limit (gcs_conn_t* conn, const char* value)
 
     if (limit > 0 && *endptr == '\0') {
 
-        if (limit > LONG_MAX) limit = LONG_MAX;
+        if ((unsigned long long)limit > LONG_MAX) limit = LONG_MAX;
 
         long long limit_fixed = limit * gcs_fc_hard_limit_fix;
 
