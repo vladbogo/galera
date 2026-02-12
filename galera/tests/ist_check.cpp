@@ -41,7 +41,9 @@ START_TEST(test_ist_recv_addr_not_set)
     register_params(conf);
     try
     {
-        galera::IST_determine_recv_addr(conf, false);
+        std::string const key(galera::ist::Receiver::conf_recv_addr_key());
+        galera::check_recv_addr(conf);
+        galera::IST_determine_addr(conf, key, false);
         ck_abort_msg("Exception not thrown");
     }
     catch (const gu::Exception& e)
@@ -56,8 +58,10 @@ START_TEST(test_ist_recv_addr_base_host)
     gu::Config conf;
     register_params(conf);
     conf.set(COMMON_BASE_HOST_KEY, "127.0.0.1");
+    std::string const key(galera::ist::Receiver::conf_recv_addr_key());
+    galera::check_recv_addr(conf);
     test_ist_recv_addr_expect("tcp://127.0.0.1:4568",
-                              galera::IST_determine_recv_addr(conf, false));
+                              galera::IST_determine_addr(conf, key,false));
 }
 END_TEST
 
@@ -65,9 +69,10 @@ START_TEST(test_ist_recv_addr_ip)
 {
     gu::Config conf;
     register_params(conf);
-    conf.set(galera::ist::Receiver::RECV_ADDR, "127.0.0.1");
+    std::string const key(galera::ist::Receiver::conf_recv_addr_key());
+    conf.set(key, "127.0.0.1");
     test_ist_recv_addr_expect("tcp://127.0.0.1:4568",
-                              galera::IST_determine_recv_addr(conf, false));
+                              galera::IST_determine_addr(conf, key, false));
 }
 END_TEST
 
@@ -75,10 +80,10 @@ START_TEST(test_ist_recv_addr_ip_port)
 {
     gu::Config conf;
     register_params(conf);
-    conf.set(galera::ist::Receiver::RECV_ADDR, "127.0.0.1:10001");
-
+    std::string const key(galera::ist::Receiver::conf_recv_addr_key());
+    conf.set(key, "127.0.0.1:10001");
     test_ist_recv_addr_expect("tcp://127.0.0.1:10001",
-                              galera::IST_determine_recv_addr(conf, false));
+                              galera::IST_determine_addr(conf, key, false));
 }
 END_TEST
 
@@ -86,9 +91,10 @@ START_TEST(test_ist_recv_addr_tcp_ip)
 {
     gu::Config conf;
     register_params(conf);
-    conf.set(galera::ist::Receiver::RECV_ADDR, "tcp://127.0.0.1");
+    std::string const key(galera::ist::Receiver::conf_recv_addr_key());
+    conf.set(key, "tcp://127.0.0.1");
     test_ist_recv_addr_expect("tcp://127.0.0.1:4568",
-                              galera::IST_determine_recv_addr(conf, false));
+                              galera::IST_determine_addr(conf, key, false));
 }
 END_TEST
 
@@ -96,9 +102,10 @@ START_TEST(test_ist_recv_addr_tcp_ip_port)
 {
     gu::Config conf;
     register_params(conf);
-    conf.set(galera::ist::Receiver::RECV_ADDR, "tcp://127.0.0.1");
+    std::string const key(galera::ist::Receiver::conf_recv_addr_key());
+    conf.set(key, "tcp://127.0.0.1");
     test_ist_recv_addr_expect("tcp://127.0.0.1:4568",
-                              galera::IST_determine_recv_addr(conf, false));
+                              galera::IST_determine_addr(conf, key, false));
 }
 END_TEST
 
@@ -106,10 +113,12 @@ START_TEST(test_ist_recv_bind_not_set)
 {
     gu::Config conf;
     register_params(conf);
-    conf.set(galera::ist::Receiver::RECV_ADDR, "127.0.0.1");
+    std::string const recv_key(galera::ist::Receiver::conf_recv_addr_key());
+    conf.set(recv_key, "127.0.0.1");
     try
     {
-        (void)galera::IST_determine_recv_bind(conf, false);
+        std::string const bind_key(galera::ist::Receiver::conf_bind_addr_key());
+        (void)galera::IST_determine_addr(conf, bind_key, false);
         ck_abort_msg("Exception not thrown");
     }
     catch (const gu::NotSet&) { }
@@ -125,9 +134,10 @@ START_TEST(test_ist_recv_addr_auto_ssl_scheme)
     // Existing ssl_key parameter should result in ssl scheme if
     // scheme is not explicitly given.
     conf.set(gu::conf::ssl_key, "key");
-    conf.set(galera::ist::Receiver::RECV_ADDR, "127.0.0.1");
+    std::string const key(galera::ist::Receiver::conf_recv_addr_key());
+    conf.set(key, "127.0.0.1");
     test_ist_recv_addr_expect("ssl://127.0.0.1:4568",
-                              galera::IST_determine_recv_addr(conf, false));
+                              galera::IST_determine_addr(conf, key, false));
 }
 END_TEST
 
@@ -135,12 +145,12 @@ START_TEST(test_ist_recv_addr_ssl_scheme)
 {
     gu::Config conf;
     register_params(conf);
-    // Existing ssl_key parameter should result in ssl scheme if
-    // scheme is not explicitly given.
+    // Check for ssl scheme if scheme is explicitly given.
     conf.set(gu::conf::ssl_key, "key");
-    conf.set(galera::ist::Receiver::RECV_ADDR, "ssl://127.0.0.1");
+    std::string const key(galera::ist::Receiver::conf_recv_addr_key());
+    conf.set(key, "ssl://127.0.0.1");
     test_ist_recv_addr_expect("ssl://127.0.0.1:4568",
-                              galera::IST_determine_recv_addr(conf, false));
+                              galera::IST_determine_addr(conf, key, false));
 }
 END_TEST
 
@@ -401,7 +411,8 @@ extern "C" void* receiver_thd(void* arg)
 
     mark_point();
 
-    conf.set(galera::ist::Receiver::RECV_ADDR, rargs->listen_addr_);
+    conf.set(galera::ist::Receiver::conf_recv_addr_key(),
+             rargs->listen_addr_);
     ISTHandler isth;
     galera::ist::Receiver receiver(conf, rargs->gcache_, slave_pool,
                                    isth, 0, NULL);
