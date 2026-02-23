@@ -78,6 +78,7 @@
  *
  *      Jan Lindström
  *      - Silence coverity resource leak issue.
+ *      - Remove extra va_end() from _gu_db_doprnt_()
  *
  * $Id$
  */
@@ -359,7 +360,7 @@ static char *static_strtok(char *s1, char chr);
 
 #undef EXISTS
 #if !defined(HAVE_ACCESS) || defined(MSDOS)
-#define EXISTS(pathname) (FALSE)			   /* Assume no existence */
+#define EXISTS(pathname) (FALSE) /* Assume no existence */
 #define Writable(name) (TRUE)
 #else
 #define EXISTS(pathname)	 (access (pathname, F_OK) == 0)
@@ -654,7 +655,7 @@ _gu_db_push_(const char *control)
 	if (*++control == '#')
 	    control++;
     }
-    if (*control)
+    if (control && *control)
 	_gu_no_db_ = FALSE;		    /* We are using dbug after all */
     else
 	return;
@@ -1072,7 +1073,6 @@ _gu_db_doprnt_(const char *format, ...)
 	}
 	(void) fprintf(_gu_db_fp_, "%s: ", state->u_keyword);
 	(void) vfprintf(_gu_db_fp_, format, args);
-	va_end(args);
 	(void) fputc('\n', _gu_db_fp_);
 	dbug_flush(state);
 	errno = save_errno;

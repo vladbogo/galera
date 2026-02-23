@@ -5,7 +5,7 @@ set -eux
 # $Id$
 
 # Galera library version
-VERSION="26.4.25"
+VERSION="26.4.26"
 
 get_cores()
 {
@@ -139,9 +139,9 @@ last_stage="galera"
 gainroot=""
 TARGET=${TARGET:-""} # default target
 
-while test $# -gt 0
+while [ $# -gt 0 ]
 do
-    case $1 in
+    case "$1" in
         --stage)
             initial_stage=$2
             shift
@@ -399,11 +399,9 @@ GALERA_REV="XXXXX"
 GALERA_REV=${GALERA_REV//[[:space:]]/}
 popd
 
-if [ -z "$RELEASE" ]
-then
-    source GALERA_VERSION
-    RELEASE="$GALERA_VERSION_WSREP_API.$GALERA_VERSION_MAJOR.$GALERA_VERSION_MINOR"
-fi
+. GALERA_VERSION
+[ -z "$RELEASE" ] && \
+RELEASE="$GALERA_VERSION_WSREP_API.$GALERA_VERSION_MAJOR.$GALERA_VERSION_MINOR"
 if [ "$PACKAGE" == "yes" -a "$OS" == "Linux" ]
 then
     echo "Debian or RPM package build"
