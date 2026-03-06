@@ -9,7 +9,7 @@ endif()
 
 set(Boost_USE_MULTITHREAD ON)
 set(Boost_USE_STATIC_LIBS ${GALERA_STATIC})
-find_package(Boost 1.41 COMPONENTS filesystem program_options system)
+find_package(Boost 1.41 COMPONENTS filesystem program_options OPTIONAL_COMPONENTS system)
 if (NOT Boost_FOUND)
   if (Boost_USE_STATIC_LIBS)
     message(ERROR
@@ -21,7 +21,9 @@ else()
   include_directories(${Boost_INCLUDE_DIRS})
   message(STATUS "Found Boost program options library: ${Boost_PROGRAM_OPTIONS_LIBRARY}")
   message(STATUS "Found Boost filesystem library: ${Boost_FILESYSTEM_LIBRARY}")
-  message(STATUS "Found Boost system library: ${Boost_SYSTEM_LIBRARY}")
+  if(TARGET Boost::system)
+    message(STATUS "Found Boost system library: ${Boost_SYSTEM_LIBRARY}")
+  endif()
 endif()
 
 # Use nanosecond time precision
